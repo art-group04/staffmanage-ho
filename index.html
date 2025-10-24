@@ -3,286 +3,222 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Branch Attendance System</title>
+  <title>Admin Dashboard | Branch Attendance System</title>
 
+  <!-- ✅ Tailwind CSS -->
   <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 
   <style>
-    body { background: #f4f6f8; }
+    body { background-color: #f8fafc; }
     .card { background: white; border-radius: 1rem; box-shadow: 0 3px 10px rgba(0,0,0,0.1); padding: 1.5rem; }
     input, select { border: 1px solid #ccc; border-radius: 6px; padding: .5rem; width: 100%; }
     button { background: #2563eb; color: white; border-radius: 8px; padding: .6rem 1rem; }
     button:hover { background: #1d4ed8; }
-    #main, #adminPanel { display: none; }
+    h2 { color: #1e3a8a; }
   </style>
 </head>
 <body class="p-6">
 
-<h2 class="text-2xl font-bold mb-4 text-center">Branch Attendance System</h2>
+  <h2 class="text-3xl font-bold text-center mb-6">Admin Dashboard</h2>
 
-<!-- LOGIN BOX -->
-<div id="authBox" class="max-w-md mx-auto card">
-  <h3 class="text-xl font-semibold mb-4">Login</h3>
-  <input id="email" type="text" placeholder="Username" class="mb-3">
-  <input id="pass" type="password" placeholder="Password" class="mb-3">
-  <button id="signInBtn" class="w-full">Sign In</button>
-</div>
+  <div class="max-w-6xl mx-auto grid md:grid-cols-2 gap-8">
 
-<!-- MAIN SECTION (Staff) -->
-<div id="main" class="max-w-2xl mx-auto card">
-  <div class="flex justify-between mb-4">
-    <h3 class="text-xl font-semibold">Welcome <span id="userName"></span></h3>
-    <button id="signOutBtn">Sign Out</button>
-  </div>
-  <div class="mb-4">
-    <label class="font-semibold">Assigned Branch</label>
-    <select id="branchSelect" disabled class="mt-1"></select>
-  </div>
-  <button id="markBtn" class="w-full mb-3">📍 Mark Attendance</button>
-  <div id="status" class="text-center text-green-600 font-semibold"></div>
-</div>
+    <!-- 🏢 Branch Management -->
+    <div class="card">
+      <h3 class="text-2xl font-semibold mb-4">Manage Branches</h3>
 
-<!-- ADMIN PANEL -->
-<div id="adminPanel" class="max-w-4xl mx-auto card mt-6">
-  <h3 class="text-2xl font-bold mb-4">Admin Panel</h3>
+      <div class="mb-4">
+        <input id="branchName" placeholder="Branch Name" class="mb-2">
+        <input id="branchLat" placeholder="Latitude" class="mb-2">
+        <input id="branchLon" placeholder="Longitude" class="mb-2">
+        <input id="branchRadius" placeholder="Radius (meters)" class="mb-2">
+        <button id="btnAddBranch" class="w-full mb-3">➕ Add Branch</button>
+      </div>
 
-  <div class="grid md:grid-cols-2 gap-6">
-    <!-- Branch Section -->
-    <div>
-      <h4 class="text-lg font-semibold mb-2">Add Branch</h4>
-      <input id="branchName" placeholder="Branch Name" class="mb-2">
-      <input id="branchLat" placeholder="Latitude" class="mb-2">
-      <input id="branchLng" placeholder="Longitude" class="mb-2">
-      <input id="branchRadius" placeholder="Radius (meters)" class="mb-2" value="100">
-      <button id="btnAddBranch" class="w-full mb-4">Add Branch</button>
-      <ul id="branchList"></ul>
+      <h4 class="font-semibold mb-2">Existing Branches</h4>
+      <ul id="branchList" class="space-y-2"></ul>
     </div>
 
-    <!-- User Section -->
-    <div>
-      <h4 class="text-lg font-semibold mb-2">Create User</h4>
-      <input id="userNameInput" placeholder="Username" class="mb-2">
-      <input id="userPass" placeholder="Password" class="mb-2">
-      <select id="userBranch" class="mb-2"></select>
-      <select id="userRole" class="mb-2">
-        <option value="staff">Staff</option>
-        <option value="admin">Admin</option>
-      </select>
-      <button id="btnCreateUser" class="w-full">Create User</button>
-      <ul id="userList"></ul>
+    <!-- 👥 User Management -->
+    <div class="card">
+      <h3 class="text-2xl font-semibold mb-4">Manage Users</h3>
+
+      <div class="mb-4">
+        <input id="staffName" placeholder="Full name" class="mb-2">
+        <input id="userName" placeholder="Username" class="mb-2">
+        <input id="userPass" placeholder="Password" class="mb-2">
+        <select id="userBranch" class="mb-2"></select>
+        <select id="userRole" class="mb-2">
+          <option value="staff">Staff</option>
+          <option value="admin">Admin</option>
+        </select>
+        <button id="btnCreateUser" class="w-full mb-3">👤 Create User</button>
+      </div>
+
+      <h4 class="font-semibold mb-2">Existing Users</h4>
+      <ul id="userList" class="space-y-2"></ul>
     </div>
   </div>
 
-  <a href="attendance-list.html" class="mt-6 inline-block bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
-    📋 View Attendance List
-  </a>
-</div>
+  <!-- ✅ Firebase & Admin Script -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs,
+      deleteDoc,
+      doc,
+      serverTimestamp,
+      updateDoc
+    } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 
-<!-- Firebase Script -->
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
-import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, getDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+    // ✅ Firebase Config (same as your project)
+    const firebaseConfig = {
+     apiKey: "AIzaSyCOcsL9ahdFUunWDAcv5JZdnMxMZehquhg",
+    authDomain: "art-staffmanage.firebaseapp.com",
+    projectId: "art-staffmanage",
+    storageBucket: "art-staffmanage.firebasestorage.app",
+    messagingSenderId: "951269778971",
+    appId: "1:951269778971:web:11fbb26385588ced133abe"
+    };
 
-// 🔥 Firebase Config
-const firebaseConfig = {
-  apiKey: "AIzaSyArh9Lqdyio6QZ276L2ciMwEgU8BgigrFs",
-  authDomain: "user-atten.firebaseapp.com",
-  projectId: "user-atten",
-};
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+    // Elements
+    const branchList = document.getElementById('branchList');
+    const branchSelect = document.getElementById('userBranch');
+    const userList = document.getElementById('userList');
 
-// 🔐 Device ID
-const getDeviceId = () => {
-  let id = localStorage.getItem('deviceId');
-  if (!id) {
-    id = 'dev-' + Math.random().toString(36).substring(2) + Date.now();
-    localStorage.setItem('deviceId', id);
-  }
-  return id;
-};
-const currentDeviceId = getDeviceId();
-let currentUser = null;
+    // 📍 Load Branches
+    async function loadBranches() {
+      branchList.innerHTML = branchSelect.innerHTML = "";
+      const snaps = await getDocs(collection(db, "branches"));
+      snaps.forEach((d) => {
+        const b = d.data();
+        const li = document.createElement("li");
+        li.className = "p-3 bg-gray-100 rounded-md flex justify-between items-center";
+        li.innerHTML = `
+          <span>${b.name} (${b.radius_m}m)</span>
+          <div class="space-x-2">
+            <button class="bg-yellow-500 hover:bg-yellow-600 px-2 py-1 text-sm rounded" data-id="${d.id}" data-type="edit">Edit</button>
+            <button class="bg-red-600 hover:bg-red-700 px-2 py-1 text-sm rounded" data-id="${d.id}" data-type="delete">Delete</button>
+          </div>
+        `;
+        branchList.appendChild(li);
 
-// 🌍 Haversine formula
-function getDistance(lat1, lon1, lat2, lon2) {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = Math.sin(dLat / 2) ** 2 +
-            Math.cos(lat1 * Math.PI / 180) *
-            Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-// Elements
-const signInBtn = document.getElementById('signInBtn');
-const authBox = document.getElementById('authBox');
-const mainBox = document.getElementById('main');
-const adminPanel = document.getElementById('adminPanel');
-const userNameEl = document.getElementById('userName');
-const statusEl = document.getElementById('status');
-
-const branchName = document.getElementById("branchName");
-const branchLat = document.getElementById("branchLat");
-const branchLng = document.getElementById("branchLng");
-const branchRadius = document.getElementById("branchRadius");
-const branchList = document.getElementById("branchList");
-
-const userNameInput = document.getElementById("userNameInput");
-const userPass = document.getElementById("userPass");
-const userBranch = document.getElementById("userBranch");
-const userRole = document.getElementById("userRole");
-const userList = document.getElementById("userList");
-const branchSelect = document.getElementById("branchSelect");
-const signOutBtn = document.getElementById("signOutBtn");
-
-// 🔐 LOGIN
-signInBtn.onclick = async () => {
-  const username = document.getElementById('email').value.trim();
-  const password = document.getElementById('pass').value.trim();
-  if (!username || !password) return alert("Enter username and password");
-
-  const q = query(collection(db, 'users'), where('username', '==', username));
-  const snapshot = await getDocs(q);
-  if (snapshot.empty) return alert("User not found");
-
-  const docSnap = snapshot.docs[0];
-  const user = docSnap.data();
-  if (user.password !== password) return alert("Incorrect password");
-
-  const branchRef = doc(db, "branches", user.branchId);
-  const branchDoc = await getDoc(branchRef);
-  if (!branchDoc.exists()) return alert("Branch not found");
-
-  const branch = branchDoc.data();
-
- 
-  if (!user.deviceId) {
-    await updateDoc(doc(db, 'users', docSnap.id), { deviceId: currentDeviceId });
-  } else if (user.deviceId !== currentDeviceId) {
-    alert("🚫 Account already linked to another device");
-    return;
-  }
-
-  currentUser = { id: docSnap.id, ...user, branch };
-  userNameEl.textContent = currentUser.username;
-  authBox.style.display = "none";
-
-  if (currentUser.role === 'admin') {
-    adminPanel.style.display = "block";
-    loadBranches();
-    loadUsers();
-  } else {
-    mainBox.style.display = "block";
-    loadAssignedBranch(currentUser.branchId);
-  }
-};
-
-
-
-async function loadAssignedBranch(branchId) {
-  const ref = doc(db, "branches", branchId);
-  const bDoc = await getDoc(ref);
-  if (!bDoc.exists()) return;
-  branchSelect.innerHTML = `<option>${bDoc.data().name}</option>`;
-}
-
-async function loadBranches() {
-  const snaps = await getDocs(collection(db, "branches"));
-  branchList.innerHTML = userBranch.innerHTML = "";
-  snaps.forEach(d => {
-    const b = d.data();
-    branchList.innerHTML += `<li>${b.name} (${b.radiusMeters}m)</li>`;
-    userBranch.innerHTML += `<option value="${d.id}">${b.name}</option>`;
-  });
-}
-
-async function loadUsers() {
-  const snaps = await getDocs(collection(db, "users"));
-  userList.innerHTML = "";
-  snaps.forEach(d => {
-    const u = d.data();
-    userList.innerHTML += `<li>${u.username} (${u.role})</li>`;
-  });
-}
-
-// 🕒 Mark Attendance (once per day)
-document.getElementById("markBtn").onclick = async () => {
-  statusEl.innerText = "";
-
-  if (!currentUser || !currentUser.branchId) {
-    alert("⚠️ Branch not assigned.");
-    return;
-  }
-
-  // 🔹 ബ്രാഞ്ച് ഡാറ്റ എടുത്തുക
-  const branchRef = doc(db, "branches", currentUser.branchId);
-  const bDoc = await getDoc(branchRef);
-  if (!bDoc.exists()) return alert("Branch not found");
-  const b = bDoc.data();
-
-  navigator.geolocation.getCurrentPosition(async (pos) => {
-    const { latitude, longitude } = pos.coords;
-
-    // 🔹 Distance കണക്കാക്കുക
-    const distance = getDistance(latitude, longitude, b.lat, b.lng);
-
-    // 🔹 പുതിയ field name ഉപയോഗിക്കുക
-    const branchRadius = Number(b.radius_m); // ✅ correct field name
-
-    if (isNaN(b.lat) || isNaN(b.lng)) {
-      alert("⚠️ Invalid branch coordinates");
-      return;
-    }
-    if (isNaN(branchRadius)) {
-      alert("⚠️ Invalid branch radius");
-      return;
+        const opt = document.createElement("option");
+        opt.value = d.id;
+        opt.textContent = b.name;
+        branchSelect.appendChild(opt);
+      });
     }
 
-    // 🔹 Distance limit ചെക്ക് ചെയ്യുക (admin ഒഴികെ)
-    if (currentUser.role !== "admin" && distance > branchRadius) {
-      alert(`🚫 You are outside branch area (${Math.round(distance)}m > ${branchRadius}m)`);
-      return;
-    }
+    // ➕ Add Branch
+    document.getElementById("btnAddBranch").onclick = async () => {
+      const name = document.getElementById("branchName").value.trim();
+      const lat = parseFloat(document.getElementById("branchLat").value);
+      const lon = parseFloat(document.getElementById("branchLon").value);
+      const radius = parseInt(document.getElementById("branchRadius").value);     
 
-    // 🔹 ഇന്നത്തെ attendance ഉണ്ടോ എന്ന് പരിശോധിക്കുക
-    const todayStr = new Date().toISOString().slice(0,10);
-    const q = query(
-      collection(db, "attendance"),
-      where("userId", "==", currentUser.id),
-      where("dateStr", "==", todayStr)
-    );
-    const existing = await getDocs(q);
-    if (!existing.empty) {
-      statusEl.innerText = "⚠️ Attendance already marked today!";
-      return;
-    }
+      if (!name || isNaN(lat) || isNaN(lon) || isNaN(radius)) return alert("⚠️ Fill all branch fields");
 
-    // 🔹 Attendance add ചെയ്യുക
-    await addDoc(collection(db, "attendance"), {
-      userId: currentUser.id,
-      username: currentUser.username,
-      branchName: b.name,
-      branchId: currentUser.branchId,
-      time: serverTimestamp(),
-      dateStr: todayStr,
-      location: { lat: latitude, lng: longitude, distance }
+      await addDoc(collection(db, "branches"), {
+        name,
+        lat: lat,
+        lng: lon,
+        radius_m: radius,
+        createdAt: serverTimestamp()
+      });
+      alert("✅ Branch added!");
+      loadBranches();
+    };
+
+    // 🗑️ Edit / Delete Branch
+    branchList.addEventListener("click", async (e) => {
+      const id = e.target.dataset.id;
+      if (!id) return;
+
+      if (e.target.dataset.type === "delete") {
+        if (!confirm("Delete this branch?")) return;
+        await deleteDoc(doc(db, "branches", id));
+        alert("✅ Branch deleted!");
+        loadBranches();
+      }
+
+      if (e.target.dataset.type === "edit") {
+        const newName = prompt("Enter new branch name:");
+        if (!newName) return;
+        await updateDoc(doc(db, "branches", id), { name: newName });
+        alert("✅ Branch updated!");
+        loadBranches();
+      }
     });
 
-    statusEl.innerText = "✅ Attendance Marked Successfully!";
-  }, (err) => {
-    console.error(err);
-    alert("⚠️ Location access denied or unavailable.");
-  });
-};
+    // 👤 Create User
+    document.getElementById("btnCreateUser").onclick = async () => {
+      const username = document.getElementById("userName").value.trim();
+      const password = document.getElementById("userPass").value.trim();
+      const branchId = document.getElementById("userBranch").value;
+      const role = document.getElementById("userRole").value;
+      const staffName = document.getElementById("staffName").value;
 
+      if (!username || !password || !branchId) return alert("⚠️ Fill all user fields");
 
+      await addDoc(collection(db, "users"), {
+        username,
+        password,
+        branchId,
+        role,
+        deviceId: "",
+        createdAt: serverTimestamp(),
+      });
+      alert("✅ User created!");
+      loadUsers();
+    };
 
-// 🚪 Sign out
-signOutBtn.onclick = () => location.reload();
-</script>
+    // 👥 Load Users
+    async function loadUsers() {
+      userList.innerHTML = "";
+      const snaps = await getDocs(collection(db, "users"));
+      snaps.forEach((d) => {
+        const u = d.data();
+        const li = document.createElement("li");
+        li.className = "p-3 bg-gray-100 rounded-md flex justify-between items-center";
+        li.innerHTML = `
+          <span>${u.username} (${u.role}) - <small>${u.branchId}</small></span>
+          <div class="space-x-2">
+            <button class="bg-purple-500 hover:bg-purple-600 px-2 py-1 text-sm rounded" data-id="${d.id}" data-type="reset">Reset Device</button>
+            <button class="bg-red-600 hover:bg-red-700 px-2 py-1 text-sm rounded" data-id="${d.id}" data-type="delete">Delete</button>
+          </div>
+        `;
+        userList.appendChild(li);
+      });
+    }
+
+    // ⚙️ Delete or Reset Device
+    userList.addEventListener("click", async (e) => {
+      const id = e.target.dataset.id;
+      if (!id) return;
+
+      if (e.target.dataset.type === "delete") {
+        if (!confirm("Delete this user?")) return;
+        await deleteDoc(doc(db, "users", id));
+        alert("✅ User deleted!");
+        loadUsers();
+      }
+
+      if (e.target.dataset.type === "reset") {
+        await updateDoc(doc(db, "users", id), { deviceId: "" });
+        alert("✅ Device reset successful!");
+      }
+    });
+
+    // Initial Load
+    loadBranches();
+    loadUsers();
+  </script>
 </body>
 </html>
