@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Records | Admin</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+  <style>
+    body { background-color: #f4f6f8; }
+    .card { background: white; border-radius: 1rem; box-shadow: 0 3px 10px rgba(0,0,0,0.1); padding: 1.5rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem; text-align: left; }
+    th { background-color: #f0f0f0; }
+  </style>
+</head>
+<body class="p-6">
+
+  <h2 class="text-2xl font-bold text-center mb-6">Attendance Records</h2>
+
+  <div class="max-w-6xl mx-auto card">
+    <table>
+      <thead>
+        <tr>
+          <th>Branch Name</th>
+          <th>User Name</th>
+          <th>Date</th>
+          <th>Time</th>
+        </tr>
+      </thead>
+      <tbody id="attendanceList">
+        <tr><td colspan="4" class="text-center">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Firebase & Script -->
+ <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+  import {
+    getFirestore, collection, getDocs
+  } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyCOcsL9ahdFUunWDAcv5JZdnMxMZehquhg",
+    authDomain: "art-staffmanage.firebaseapp.com",
+    projectId: "art-staffmanage",
+    storageBucket: "art-staffmanage.firebasestorage.app",
+    messagingSenderId: "951269778971",
+    appId: "1:951269778971:web:11fbb26385588ced133abe"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const attendanceList = document.getElementById("attendanceList");
+
+  async function loadAttendanceSorted() {
+    attendanceList.innerHTML = "<tr><td colspan='4' class='text-center'>Loading...</td></tr>";
+
+    // Load branch names map (safe if attendance docs only store branchId)
+    const branchSnaps = await getDocs(collection(db, "branches"));
+    const branchMap = {};
+    branchSnaps.forEach(d => {
+      const data = d.data();
+      branchMap[d.id] = data?.name || data?.branchName || d.id;
+    });
+
+    // Load users map
+    const userSnaps = await getDocs(collection(db, "users"));
+    const userMap = {};
+    userSnaps.forEach(d => { userMap[d.id] = d.data().username || d.data().name || d.id; });
+
+    // Load attendance
+    const attSnaps = await getDocs(collection(db, "attendance"));
+    if (attSnaps.empty) {
+      attendanceList.innerHTML = "<tr><td colspan='4' class='text-center'>No attendance records found.</td></tr>";
+      return;
+    }
+
+    // Collect attendance rows into array
+    const rows = [];
+    attSnaps.forEach(doc => {
+      const att = doc.data();
+
+      // Resolve timestamp -> Date
+      const ts = att.time?.toDate ? att.time.toDate() :
+                 (typeof att.time === "number" ? new Date(att.time) : new Date());
+
+      const dateStr = att.dateStr || ts.toLocaleDateString();
+      const timeStr = ts.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+      // Prefer branchName saved in att doc, else use branchMap, else branchId
+      const branchName = (att.branchName && String(att.branchName).trim()) ||
+                         (att.branchId && branchMap[att.branchId]) ||
+                         (att.branchId) || "-";
+
+      const userName = userMap[att.userId] || att.userId || "-";
+
+      rows.push({
+        branchName,
+        userName,
+        dateStr,
+        timeStr
+      });
+    });
+
+    // Sort A -> Z by branchName (case-insensitive)
+    rows.sort((a, b) => {
+      const x = String(a.branchName).toLowerCase();
+      const y = String(b.branchName).toLowerCase();
+      if (x < y) return -1;
+      if (x > y) return 1;
+      return 0;
+    });
+
+    // Render sorted rows
+    attendanceList.innerHTML = "";
+    rows.forEach(r => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${escapeHtml(r.branchName)}</td>
+        <td>${escapeHtml(r.userName)}</td>
+        <td>${escapeHtml(r.dateStr)}</td>
+        <td>${escapeHtml(r.timeStr)}</td>
+      `;
+      attendanceList.appendChild(tr);
+    });
+  }
+
+  // small helper to avoid accidental HTML injection if values contain < & etc.
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  // Run loader
+  loadAttendanceSorted();
+</script>
+
+</body>
+</html>
+
