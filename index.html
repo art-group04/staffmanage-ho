@@ -44,7 +44,7 @@
       <h3 class="text-2xl font-semibold mb-4">Manage Users</h3>
 
       <div class="mb-4">
-        <input id="user" placeholder="Full name" class="mb-2">
+        <input id="staffName" placeholder="Full name" class="mb-2">
         <input id="userName" placeholder="Username" class="mb-2">
         <input id="userPass" placeholder="Password" class="mb-2">
         <select id="userBranch" class="mb-2"></select>
@@ -163,7 +163,7 @@
       const password = document.getElementById("userPass").value.trim();
       const branchId = document.getElementById("userBranch").value;
       const role = document.getElementById("userRole").value;
-      const user = document.getElementById("user").value.trim();
+      const user = document.getElementById("staffName").value.trim();
 
       if (!username || !password || !branchId) return alert("⚠️ Fill all user fields");
 
